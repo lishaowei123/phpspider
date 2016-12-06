@@ -14,20 +14,19 @@
       echo selector::select($html,'/html/head/title/text()');
 
      百度一下,你就知道
+      $urls=['https://www.baidu.com/','https://www.baidu.com/']
+    requests::set_cookies();
+    requests::$headers=[];
+    $htmls=  requests::gets($urls);//curl并发
+    var_dump($htmls);
 
-  $urls=['https://www.baidu.com/','https://www.baidu.com/']
-  requests::set_cookies();
-  requests::$headers=[];
-$htmls=  requests::gets($urls);//curl并发
-var_dump($htmls);
+    {
+      {
+      code:200,
+      html:html,
+      url:url
+      },
+      ...
 
-{
-  {
-  code:200,
-  html:html,
-  url:url
-  },
-  ...
-
-}
-  ...
+    }
+      ...
