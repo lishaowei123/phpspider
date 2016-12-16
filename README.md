@@ -5,7 +5,7 @@
 - 支持xpath选择器
 - 支持css选择器
 - 支持正则表达式
-
+- curl多线程
 
 ##访问demo /tests/taobao.php
 
