@@ -46,4 +46,4 @@ $Spider = new Spider([
 $r =  $Spider->Run();
 $tnd=time()-$START;
 $r['time']=$tnd;
-return $r;
+var_dump($r);
