@@ -1,3 +1,8 @@
+- xpath选择器
+- css选择器
+- 正则表达式
+
+
 ##访问demo /tests/taobao.php
 
 
