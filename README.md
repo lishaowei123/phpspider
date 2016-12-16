@@ -1,8 +1,8 @@
-##访问demo
-tests/taobao.php
+##访问demo /tests/taobao.php
 
 
-requests::$headers=[
+
+**requests::$headers=[
     'User-Agent'=>'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'
 ];
 //天猫cookie
@@ -31,4 +31,4 @@ $r =  $Spider->Run();
 $tnd=time()-$START;
 $r['time']=$tnd;
 var_dump($r);
-      ...
+      ...**
