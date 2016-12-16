@@ -1,6 +1,10 @@
-- xpath选择器
-- css选择器
-- 正则表达式
+#php简单爬虫扩展
+
+
+
+- 支持xpath选择器
+- 支持css选择器
+- 支持正则表达式
 
 
 ##访问demo /tests/taobao.php
