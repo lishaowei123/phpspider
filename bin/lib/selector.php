@@ -17,7 +17,7 @@ namespace Bin\lib;
 use DOMXPath;
 use DOMDocument;
 
-include dirname (__FILE__) . '/../../data/phpQuery.php';
+include dirname(__FILE__) . '/../../data/phpQuery.php';
 
 class selector
 {
