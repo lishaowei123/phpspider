@@ -16,12 +16,12 @@
 //    'timeout'   => 30,
 //);
 define('CORE', dirname(__FILE__));
-define('PATH_ROOT', CORE . "/");
+define('PATH_ROOT', CORE."/");
 
 spl_autoload_register(function ($class) {
     if ($class) {
         $file = str_replace('\\', '/', $class);
-        $file = PATH_ROOT . $file . '.php';
+        $file = PATH_ROOT.$file.'.php';
 
         if (file_exists($file)) {
             //系统配置

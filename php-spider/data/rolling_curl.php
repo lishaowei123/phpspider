@@ -23,12 +23,21 @@ class rolling_curl
      * 注意：采集知乎的时候，5个是比较稳定的，7个以上就开始会超时了，多进程就没有这样的问题，因为多进程很少几率会发生并发
      */
     public $window_size = 5;
+
+    /**
+     * @var float
+     *
+     * Timeout is the timeout used for curl_multi_select.
+     */
+    private $timeout = 10;
+
     /**
      * @var string|array
      *
      * 应用在每个请求的回调函数
      */
     public $callback;
+
     /**
      * @var array
      *
@@ -37,7 +46,7 @@ class rolling_curl
     protected $options = array(
         CURLOPT_SSL_VERIFYPEER => 0,
         CURLOPT_RETURNTRANSFER => 1,
-        // 注意：TIMEOUT = CONNECTTIMEOUT + 数据获取时间，所以 TIMEOUT 一定要大于 CONNECTTIMEOUT，否则 CONNECTTIMEOUT 设置了就没意义
+        // 注意：TIMEOUT = CONNECTTIMEOUT + 数据获取时间，所以 TIMEOUT 一定要大于 CONNECTTIMEOUT，否则 CONNECTTIMEOUT 设置了就没意义 
         // "Connection timed out after 30001 milliseconds"
         CURLOPT_CONNECTTIMEOUT => 30,
         CURLOPT_TIMEOUT => 60,
@@ -47,12 +56,7 @@ class rolling_curl
         CURLOPT_NOSIGNAL => 1,
         CURLOPT_USERAGENT => "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.89 Safari/537.36",
     );
-    /**
-     * @var float
-     *
-     * Timeout is the timeout used for curl_multi_select.
-     */
-    private $timeout = 10;
+
     /**
      * @var array
      */
@@ -151,10 +155,10 @@ class rolling_curl
 
     /**
      * 获取内容的时候是不是连header也一起获取
-     *
+     * 
      * @param mixed $http_raw
      * @return void
-     * @author seatle <seatle@foxmail.com>
+     * @author seatle <seatle@foxmail.com> 
      * @created time :2016-09-18 10:17
      */
     public function set_http_raw($http_raw = false)
@@ -171,8 +175,8 @@ class rolling_curl
     public function set_ip($ip)
     {
         $headers = array(
-            'CLIENT-IP' => $ip,
-            'X-FORWARDED-FOR' => $ip,
+            'CLIENT-IP'=>$ip,
+            'X-FORWARDED-FOR'=>$ip,
         );
         $this->headers = $this->headers + $headers;
     }
@@ -197,7 +201,7 @@ class rolling_curl
     public function set_hosts($hosts)
     {
         $headers = array(
-            'Host' => $hosts,
+            'Host'=>$hosts,
         );
         $this->headers = $this->headers + $headers;
     }
@@ -210,9 +214,75 @@ class rolling_curl
      */
     public function set_gzip($gzip)
     {
-        if ($gzip) {
+        if ($gzip) 
+        {
             $this->options[CURLOPT_ENCODING] = 'gzip';
         }
+    }
+
+    public function request($url, $method = "GET", $fields = array(), $headers = array(), $options = array())
+    {
+        $this->requests[] = array('url'=>$url,'method'=>$method,'fields'=>$fields,'headers'=>$headers,'options'=>$options);
+        return true;
+    }
+
+    public function get_options($request)
+    {
+        $options = $this->options;
+        $headers = $this->headers;
+
+        if (ini_get('safe_mode') == 'Off' || !ini_get('safe_mode')) 
+        {
+            $options[CURLOPT_FOLLOWLOCATION] = 1;
+            $options[CURLOPT_MAXREDIRS] = 5;
+        }
+
+        // 如果是 get 方式，直接拼凑一个 url 出来
+        if (strtolower($request['method']) == 'get' && !empty($request['fields'])) 
+        {
+            $url = $request['url'] . "?" . http_build_query($request['fields']);
+        }
+        // 如果是 post 方式
+        if (strtolower($request['method']) == 'post')
+        {
+            $options[CURLOPT_POST] = 1;
+            $options[CURLOPT_POSTFIELDS] = $request['fields'];
+        }
+
+        // append custom options for this specific request
+        if ($request['options']) 
+        {
+            $options = $request['options'] + $options;
+        }
+
+        if ($request['headers']) 
+        {
+            $headers = $request['headers'] + $headers;
+        }
+
+        // 随机绑定 hosts，做负载均衡
+        //if (self::$hosts) 
+        //{
+            //$parse_url = parse_url($url);
+            //$host = $parse_url['host'];
+            //$key = rand(0, count(self::$hosts)-1);
+            //$ip = self::$hosts[$key];
+            //$url = str_replace($host, $ip, $url);
+            //self::$headers = array_merge( array('Host:'.$host), self::$headers );
+        //}
+
+        // header 要这样拼凑
+        $headers_tmp = array();
+        foreach ($headers as $k=>$v) 
+        {
+            $headers_tmp[] = $k.":".$v;
+        }
+        $headers = $headers_tmp;
+
+        $options[CURLOPT_URL] = $request['url'];
+        $options[CURLOPT_HTTPHEADER] = $headers;
+
+        return $options;
     }
 
     /**
@@ -228,20 +298,14 @@ class rolling_curl
         return $this->request($url, 'get', $fields, $headers, $options);
     }
 
-    public function request($url, $method = "GET", $fields = array(), $headers = array(), $options = array())
-    {
-        $this->requests[] = array('url' => $url, 'method' => $method, 'fields' => $fields, 'headers' => $headers, 'options' => $options);
-        return true;
-    }
-
     /**
      * $fields 有三种类型:1、数组；2、http query；3、json
      * 1、array('name'=>'yangzetao') 2、http_build_query(array('name'=>'yangzetao')) 3、json_encode(array('name'=>'yangzetao'))
      * 前两种是普通的post，可以用$_POST方式获取
-     * 第三种是post stream( json rpc，其实就是webservice )，虽然是post方式，但是只能用流方式 http://input 后者 $HTTP_RAW_POST_DATA 获取
-     *
-     * @param string $url
-     * @param array $fields
+     * 第三种是post stream( json rpc，其实就是webservice )，虽然是post方式，但是只能用流方式 http://input 后者 $HTTP_RAW_POST_DATA 获取 
+     * 
+     * @param string $url 
+     * @param array $fields 
      * @param array $headers
      * @param array $options
      * @return void
@@ -257,21 +321,26 @@ class rolling_curl
      * @param int $window_size Max number of simultaneous connections
      * @return string|bool
      */
-    public function execute($window_size = null)
+    public function execute($window_size = null) 
     {
         $count = sizeof($this->requests);
-        if ($count == 0) {
+        if ($count == 0) 
+        {
             return false;
-        } // 只有一个请求
-        elseif ($count == 1) {
+        }
+        // 只有一个请求
+        elseif ($count == 1) 
+        {
             return $this->single_curl();
-        } else {
+        }
+        else 
+        {
             // 开始 rolling curl，window_size 是最大同时连接数
             return $this->rolling_curl($window_size);
         }
     }
 
-    private function single_curl()
+    private function single_curl() 
     {
         $ch = curl_init();
         // 从请求队列里面弹出一个来
@@ -281,77 +350,29 @@ class rolling_curl
         $output = curl_exec($ch);
         $info = curl_getinfo($ch);
         $error = null;
-        if ($output === false) {
-            $error = curl_error($ch);
+        if ($output === false)
+        {
+            $error = curl_error( $ch );
         }
         //$output = substr($output, 10);
         //$output = gzinflate($output);
 
         // 其实一个请求的时候没是么必要回调，直接返回数据就好了，不过这里算是多一个功能吧，和多请求保持一样的操作
-        if ($this->callback) {
-            if (is_callable($this->callback)) {
+        if ($this->callback)
+        {
+            if (is_callable($this->callback))
+            {
                 call_user_func($this->callback, $output, $info, $request, $error);
             }
-        } else {
+        }
+        else
+        {
             return $output;
         }
         return true;
     }
 
-    public function get_options($request)
-    {
-        $options = $this->options;
-        $headers = $this->headers;
-
-        if (ini_get('safe_mode') == 'Off' || !ini_get('safe_mode')) {
-            $options[CURLOPT_FOLLOWLOCATION] = 1;
-            $options[CURLOPT_MAXREDIRS] = 5;
-        }
-
-        // 如果是 get 方式，直接拼凑一个 url 出来
-        if (strtolower($request['method']) == 'get' && !empty($request['fields'])) {
-            $url = $request['url'] . "?" . http_build_query($request['fields']);
-        }
-        // 如果是 post 方式
-        if (strtolower($request['method']) == 'post') {
-            $options[CURLOPT_POST] = 1;
-            $options[CURLOPT_POSTFIELDS] = $request['fields'];
-        }
-
-        // append custom options for this specific request
-        if ($request['options']) {
-            $options = $request['options'] + $options;
-        }
-
-        if ($request['headers']) {
-            $headers = $request['headers'] + $headers;
-        }
-
-        // 随机绑定 hosts，做负载均衡
-        //if (self::$hosts)
-        //{
-        //$parse_url = parse_url($url);
-        //$host = $parse_url['host'];
-        //$key = rand(0, count(self::$hosts)-1);
-        //$ip = self::$hosts[$key];
-        //$url = str_replace($host, $ip, $url);
-        //self::$headers = array_merge( array('Host:'.$host), self::$headers );
-        //}
-
-        // header 要这样拼凑
-        $headers_tmp = array();
-        foreach ($headers as $k => $v) {
-            $headers_tmp[] = $k . ":" . $v;
-        }
-        $headers = $headers_tmp;
-
-        $options[CURLOPT_URL] = $request['url'];
-        $options[CURLOPT_HTTPHEADER] = $headers;
-
-        return $options;
-    }
-
-    private function rolling_curl($window_size = null)
+    private function rolling_curl($window_size = null) 
     {
         // 如何设置了最大任务数
         if ($window_size)
@@ -362,20 +383,21 @@ class rolling_curl
             $this->window_size = sizeof($this->requests);
 
         // 如果任务数小于2个，不应该用这个方法的，用上面的single_curl方法就好了
-        if ($this->window_size < 2)
+        if ($this->window_size < 2) 
             exit("Window size must be greater than 1");
 
         // 初始化任务队列
         $master = curl_multi_init();
 
         // 开始第一批请求
-        for ($i = 0; $i < $this->window_size; $i++) {
+        for ($i = 0; $i < $this->window_size; $i++)
+        {
             $ch = curl_init();
             $options = $this->get_options($this->requests[$i]);
             curl_setopt_array($ch, $options);
             curl_multi_add_handle($master, $ch);
             // 添加到请求数组
-            $key = (string)$ch;
+            $key = (string) $ch;
             $this->requestMap[$key] = $i;
         }
 
@@ -383,12 +405,11 @@ class rolling_curl
             while (($execrun = curl_multi_exec($master, $running)) == CURLM_CALL_MULTI_PERFORM) ;
 
             // 如果
-            if ($execrun != CURLM_OK) {
-                break;
-            }
+            if ($execrun != CURLM_OK) { break; }
 
             // 一旦有一个请求完成，找出来，因为curl底层是select，所以最大受限于1024
-            while ($done = curl_multi_info_read($master)) {
+            while ($done = curl_multi_info_read($master)) 
+            {
                 // 从请求中获取信息、内容、错误
                 $info = curl_getinfo($done['handle']);
                 $output = curl_multi_getcontent($done['handle']);
@@ -396,22 +417,24 @@ class rolling_curl
 
                 // 如果绑定了回调函数
                 $callback = $this->callback;
-                if (is_callable($callback)) {
-                    $key = (string)$done['handle'];
+                if (is_callable($callback)) 
+                {
+                    $key = (string) $done['handle'];
                     $request = $this->requests[$this->requestMap[$key]];
                     unset($this->requestMap[$key]);
                     call_user_func($callback, $output, $info, $request, $error);
                 }
 
                 // 一个请求完了，就加一个进来，一直保证5个任务同时进行
-                if ($i < sizeof($this->requests) && isset($this->requests[$i]) && $i < count($this->requests)) {
+                if ($i < sizeof($this->requests) && isset($this->requests[$i]) && $i < count($this->requests))
+                {
                     $ch = curl_init();
                     $options = $this->get_options($this->requests[$i]);
                     curl_setopt_array($ch, $options);
                     curl_multi_add_handle($master, $ch);
 
                     // 添加到请求数组
-                    $key = (string)$ch;
+                    $key = (string) $ch;
                     $this->requestMap[$key] = $i;
                     $i++;
                 }
@@ -420,7 +443,8 @@ class rolling_curl
             }
 
             // 当没有数据的时候进行堵塞，把 CPU 使用权交出来，避免上面 do 死循环空跑数据导致 CPU 100%
-            if ($running) {
+            if ($running)
+            {
                 curl_multi_select($master, $this->timeout);
             }
 
