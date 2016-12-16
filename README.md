@@ -27,10 +27,6 @@ $Spider = new Spider([
     'http://www.vip.com/detail-977966-145500306.html',
 ]);
 
-//		$Spider = new Spider(
-//				[
-//						'https://detail.tmall.com/item.htm?spm=a220m.1000858.1000725.1.AzOfDV&id=536980811158&skuId=3413584971627&areaId=110100&user_id=2874825850&cat_id=50025174&is_b=1&rn=31e620c8cd52945d5136d6a62ef2e9f2'
-//				]);
 $r =  $Spider->Run();
 $tnd=time()-$START;
 $r['time']=$tnd;
