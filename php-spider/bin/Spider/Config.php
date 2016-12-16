@@ -17,11 +17,11 @@ class Config extends DataColumn
 	 */
 	public $table = [
 			'item.jd.com'=>'Online\Jd',
-//			'www.baidu.com'=>'Online\Baidu',
-//			'detail.tmall.com'=>'Online\TianMao',
-//			'product.dangdang.com'=>'Online\DangDang',
-//			'shop.mogujie.com'=>'Online\MoGu',
-//			'www.vip.com'=>'Online\Vip',
+			'www.baidu.com'=>'Online\Baidu',
+			'detail.tmall.com'=>'Online\TianMao',
+			'product.dangdang.com'=>'Online\DangDang',
+			'shop.mogujie.com'=>'Online\MoGu',
+			'www.vip.com'=>'Online\Vip',
 	];
 
 
